@@ -31,6 +31,9 @@ Vocard is a highly customizable Discord music bot, designed to deliver a user-fr
 ## Setup
 Please see the [Setup Page](https://docs.vocard.xyz/latest/bot/setup) in the docs to run this bot yourself!
 
+## Docker (imagen recomendada)
+Este fork incluye compatibilidad con **Lavalink v4.2+ (DAVE)**. Si usas Docker Compose, utiliza **la imagen Docker generada desde este repositorio** en lugar de la imagen oficial upstream.
+
 ## Need Help?
 Join the [Vocard Support Discord](https://discord.gg/wRCgB7vBQv) for help or questions.
 

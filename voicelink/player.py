@@ -333,7 +333,9 @@ class Player(VoiceProtocol):
 
     async def _dispatch_voice_update(self, voice_data: Dict[str, Any] = None):
         """Dispatches a voice update to the node."""
-        if {"sessionId", "event"} != self._voice_state.keys():
+        # Lavalink requires both a VOICE_STATE_UPDATE (sessionId + channelId)
+        # and a VOICE_SERVER_UPDATE (token + endpoint) before we can send a voice payload.
+        if not {"sessionId", "event"}.issubset(self._voice_state.keys()):
             self._logger.debug(f"Player in {self.guild.name}({self.guild.id}) dispatched voice update failed {voice_data}")
             return
 
@@ -344,6 +346,12 @@ class Player(VoiceProtocol):
             "endpoint": state['event']['endpoint'],
             "sessionId": state['sessionId'],
         }
+
+        # Lavalink v4.2+ (DAVE) expects channelId to be present.
+        # Prefer an explicitly stored value; fall back to the current channel if available.
+        channel_id = state.get("channelId") or (str(self.channel.id) if getattr(self, "channel", None) else None)
+        if channel_id:
+            data["channelId"] = channel_id
         
         await self.send(method=RequestMethod.PATCH, data={"voice": data})
         self._logger.debug(f"Player in {self.guild.name}({self.guild.id}) dispatched voice update to {state['event']['endpoint']} with data {data}")
@@ -355,7 +363,10 @@ class Player(VoiceProtocol):
 
     async def on_voice_state_update(self, data: dict):
         """Handles a voice state update event."""
-        self._voice_state.update({"sessionId": data.get("session_id")})
+        self._voice_state.update({
+            "sessionId": data.get("session_id"),
+            "channelId": data.get("channel_id")
+        })
 
         if not (channel_id := data.get("channel_id")):
             await self.teardown()
@@ -364,10 +375,9 @@ class Player(VoiceProtocol):
 
         self.channel = self.guild.get_channel(int(channel_id))
 
-        if not data.get("token"):
-            return
-
-        await self._dispatch_voice_update({**self._voice_state, "event": data})
+        # VOICE_STATE_UPDATE does not include token/endpoint; Lavalink will be updated when
+        # VOICE_SERVER_UPDATE arrives (and will then include channelId from _voice_state).
+        return
 
     async def _dispatch_event(self, data: dict):
         """Dispatches an event based on the type of event data received."""
